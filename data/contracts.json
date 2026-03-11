@@ -1,0 +1,13 @@
+{
+  "voi": {
+    "networkId": "voi-mainnet",
+    "algodUrl": "https://mainnet-api.voi.nodely.dev",
+    "algodPort": 443,
+    "algodToken": "",
+    "poolFactory": 411751,
+    "analyticsBaseUrl": "https://voimain-analytics.nomadex.app",
+    "mimirBaseUrl": "https://mainnet-idx.nautilus.sh/nft-indexer/v1",
+    "swapApiBaseUrl": "https://swap-api-iota.vercel.app",
+    "wVOI": 390001
+  }
+}
