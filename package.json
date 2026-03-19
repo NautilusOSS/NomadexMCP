@@ -1,6 +1,6 @@
 {
   "name": "nomadex-mcp",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "MCP server for the Nomadex DEX on Voi",
   "type": "module",
   "main": "index.js",

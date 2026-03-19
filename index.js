@@ -7,7 +7,7 @@ import { prepareSwap, prepareAddLiquidity, prepareRemoveLiquidity } from "./lib/
 
 const server = new McpServer({
   name: "nomadex-mcp",
-  version: "0.2.0",
+  version: "0.3.0",
 });
 
 // --- Pool tools ---

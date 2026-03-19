@@ -7,7 +7,6 @@
     "poolFactory": 411751,
     "analyticsBaseUrl": "https://voimain-analytics.nomadex.app",
     "mimirBaseUrl": "https://mainnet-idx.nautilus.sh/nft-indexer/v1",
-    "swapApiBaseUrl": "https://swap-api-iota.vercel.app",
     "wVOI": 390001
   }
 }

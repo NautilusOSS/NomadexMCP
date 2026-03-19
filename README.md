@@ -11,22 +11,22 @@ UluCoreMCP / UluVoiMCP / UluWalletMCP / UluBroadcastMCP
                                 ↓
                           NomadexMCP
                                 ↓
-                     Mimir API (pool reads)
-                     swap-api  (quotes + swap txns)
-                     On-chain  (liquidity txns)
+                     Nomadex analytics API (pool + token listing)
+                     On-chain  (swap + liquidity txns, opt-in / resource simulation)
 ```
 
 **Data sources:**
 
-- **Mimir API** (`mainnet-idx.nautilus.sh`) — Pre-indexed Nomadex pool data with balances, TVL, volume, and APR. Used for pool and token listing.
-- **swap-api** (`swap-api-iota.vercel.app`) — Cross-DEX aggregator ([source](https://github.com/xarmian/swap-api)) that handles swap quotes and transaction building across both HumbleSwap and Nomadex. Supports multi-hop routing and split routes.
-- **On-chain** (algod) — Used for add/remove liquidity transaction preparation and local AMM fallback quotes.
+- **Nomadex analytics** (`voimain-analytics.nomadex.app`) — Pool and token list with balances, volume, and APR. Drives `get_pools`, `get_pool`, `get_tokens`, and pool selection for `get_quote` / `swap_txn`.
+- **Mimir** (`mainnet-idx.nautilus.sh`) — Optional indexer client in `api.js` (e.g. ARC-200 balances); not wired to every MCP tool.
+- **On-chain** (algod) — `swap_txn` builds deposit + `swapAlphaToBeta` / `swapBetaToAlpha` app calls locally (same ABI as [swap-api’s Nomadex module](https://github.com/xarmian/swap-api/blob/main/lib/nomadex.js)); add/remove liquidity; ARC-200 box checks; `populateAppCallResources` for groups.
 
 **NomadexMCP handles:**
-- Pool discovery with live balances, TVL, volume, and APR
-- Token listing across all Nomadex pools
-- Cross-DEX swap quotes via swap-api (HumbleSwap + Nomadex, multi-hop)
-- Unsigned transaction preparation for swaps (via swap-api), adding/removing liquidity (direct on-chain)
+- Pool discovery with live balances, volume, and APR
+- Token listing across Nomadex pools
+- `get_quote` — local constant-product math on the pool picked from analytics (Nomadex-only)
+- `swap_txn` — unsigned swap groups for any pool returned by analytics (native / ASA / ARC-200), aligned with `get_quote` amounts and slippage
+- Add/remove liquidity (direct on-chain)
 
 **NomadexMCP does NOT:**
 - Sign transactions (use UluWalletMCP)
@@ -52,13 +52,13 @@ UluCoreMCP / UluVoiMCP / UluWalletMCP / UluBroadcastMCP
 
 | Tool | Description |
 |------|-------------|
-| `get_quote` | Get a swap quote with cross-DEX routing (HumbleSwap + Nomadex), multi-hop support, rate, and price impact |
+| `get_quote` | Swap quote via local Nomadex AMM math on a pool from analytics (no swap-api) |
 
 ### Transaction Preparation
 
 | Tool | Description |
 |------|-------------|
-| `swap_txn` | Build unsigned swap transactions via swap-api (cross-DEX, multi-hop) |
+| `swap_txn` | Build unsigned swap transactions on-chain (deposit + pool swap; any analytics pool) |
 | `add_liquidity_txn` | Build unsigned transactions to add liquidity to a Nomadex pool |
 | `remove_liquidity_txn` | Build unsigned transactions to remove liquidity from a Nomadex pool |
 
@@ -80,11 +80,12 @@ Agent calls UluBroadcastMCP: broadcast_transactions(network, txns)
 ```
 index.js              MCP server entry point (7 tools)
 lib/
-  api.js              Mimir API client + swap-api client
+  api.js              Nomadex analytics, Mimir (balances)
   client.js           Algod client factory, token type inference, on-chain state
-  pools.js            Pool data formatting and discovery from Mimir
-  quotes.js           Swap quotes via swap-api (fallback: local AMM math)
-  builders.js         Transaction builders (swap-api for swaps, algosdk for liquidity)
+  pools.js            Pool formatting and discovery from analytics
+  quotes.js           Local AMM quotes; swap txn details + amounts for swap_txn
+  nomadexSwap.js      Nomadex swap ABI (deposit + swapAlphaToBeta / swapBetaToAlpha)
+  builders.js         Liquidity + swap groups, opt-in prep, populateAppCallResources
 data/
   contracts.json      Network config, API URLs, pool factory ID
 ```
@@ -134,12 +135,12 @@ The Nomadex pool factory on Voi mainnet is application **411751**. All pools are
 
 | API | Base URL | Used by |
 |-----|----------|---------|
-| Mimir indexer | `https://mainnet-idx.nautilus.sh/nft-indexer/v1/` | `get_pools`, `get_pool`, `get_tokens` |
-| swap-api | `https://swap-api-iota.vercel.app` | `get_quote`, `swap_txn` |
-| Algod (Voi) | `https://mainnet-api.voi.nodely.dev` | `add_liquidity_txn`, `remove_liquidity_txn` |
+| Nomadex analytics | `https://voimain-analytics.nomadex.app` | `get_pools`, `get_pool`, `get_tokens`, pool pick for `get_quote` / `swap_txn` |
+| Mimir indexer | `https://mainnet-idx.nautilus.sh/nft-indexer/v1/` | `fetchTokenBalances` in `api.js` |
+| Algod (Voi) | `https://mainnet-api.voi.nodely.dev` | Swap + liquidity txns, simulation / resource population |
 
 ## References
 
 - [Nomadex Web](https://github.com/NomadexApp/nomadex-web)
-- [swap-api](https://github.com/xarmian/swap-api) — Cross-DEX swap aggregator
-- [Ally](https://github.com/NautilusOSS/ally) — DEX aggregator UI using swap-api
+- [swap-api](https://github.com/xarmian/swap-api) — Reference implementation for Nomadex swap txn shape (this MCP no longer calls it)
+- [Ally](https://github.com/NautilusOSS/ally) — DEX aggregator UI
